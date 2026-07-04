@@ -1,0 +1,10 @@
+venv/
+__pycache__/
+*.pyc
+.env
+
+backend/ml/data/*.csv
+backend/ml/models/*.pt
+backend/ml/models/*.joblib
+
+node_modules/

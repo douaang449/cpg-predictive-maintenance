@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-jose[cryptograhy]
+passlib[bcrypt]
+python-dotenv
+pandas
+scikit-learn
+torch
+paho-mqtt

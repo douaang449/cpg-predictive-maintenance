@@ -1,0 +1,24 @@
+version: "3.9"
+
+services:
+    postgres:
+      image: timescale/timescaledb:latest-pg15
+      container_name: cpg_postgres
+      environment:
+       POSTGRES_USER: cpg_admin
+       POSTGRES_PASSWORD: admin1234
+       POSTGRES_DB: cpg_maintenance
+      ports:
+       - "5432:5432"
+      volumes:
+       - pgdata:/var/lib/postgresql/data  
+
+    mosquitto:
+      image: eclipse-mosquitto:latest 
+      container_name: cpg_mqtT
+      ports:
+       - "1883:1883"
+volumes:
+  pgdata:
+
+     

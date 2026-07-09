@@ -12,6 +12,7 @@ services:
        - "5432:5432"
       volumes:
        - pgdata:/var/lib/postgresql/data  
+       - ./backend/docker/init-timescale.sql:/docker-entrypoint-initdb.d/init-timescale.sql
 
     mosquitto:
       image: eclipse-mosquitto:latest 

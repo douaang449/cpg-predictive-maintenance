@@ -22,7 +22,7 @@ class User(Base):
     email= Column(String(150),  nullable=False, index=True, unique=True)
     mot_de_passe_hash = Column(String(255), nullable=False)
     date_creation = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    code_CIN = Column(String(20), unique=True , index=True)
+    code_CIN = Column(String(20), unique=True , index=True, nullable=False)
     actif = Column(Boolean, default=True)
 
     role = relationship("Role", back_populates="users")

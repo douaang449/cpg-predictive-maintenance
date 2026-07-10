@@ -17,7 +17,7 @@ class SensorReading(Base):
     
 
 class Prediction(Base):
-    __tablename__ = "predictions"
+    __tablename__ = "predictions" 
 
     id = Column(Integer, primary_key=True, index=True)
     machine_id = Column(Integer, ForeignKey("machines.id"), nullable=False, index=True)

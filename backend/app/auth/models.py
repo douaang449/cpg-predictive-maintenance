@@ -3,6 +3,7 @@ from sqlalchemy.orm import relationship
 from app.core.database import Base
 import enum
 from datetime import datetime, timezone
+from app.machines.models import Machine
 
 class Role(Base):
     __tablename__ = "roles"
@@ -22,7 +23,7 @@ class User(Base):
     email= Column(String(150),  nullable=False, index=True, unique=True)
     mot_de_passe_hash = Column(String(255), nullable=False)
     date_creation = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
-    code_CIN = Column(String(20), unique=True , index=True, nullable=False)
+    code_CIN = Column(String(20), unique=True ,nullable=False, index=True)
     actif = Column(Boolean, default=True)
 
     role = relationship("Role", back_populates="users")

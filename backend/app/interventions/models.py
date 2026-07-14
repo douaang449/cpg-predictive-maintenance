@@ -21,4 +21,4 @@ class Intervention(Base):
     statut = Column(Enum(StatutIntervention), default=StatutIntervention.en_cours)
 
     alert = relationship("Alert", back_populates="interventions")
-    teechnicien = relationship("User")
+    technicien = relationship("User")

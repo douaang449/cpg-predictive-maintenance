@@ -1,8 +1,4 @@
-"""
-Script ponctuel pour créer un premier utilisateur de test.
-À exécuter une seule fois, puis peut être supprimé ou gardé comme
-utilitaire de développement (à ne jamais utiliser en production).
-"""
+
 from app.core.database import SessionLocal
 from app.core.models_registry import *
 from app.auth.models import Role, User
@@ -10,7 +6,7 @@ from app.core.security import hash_password
 
 db = SessionLocal()
 
-# Créer le rôle s'il n'existe pas encore
+
 role = db.query(Role).filter(Role.nom == "chef_projet").first()
 if role is None:
     role = Role(nom="chef_projet")
@@ -18,7 +14,7 @@ if role is None:
     db.commit()
     db.refresh(role)
 
-# Créer l'utilisateur de test
+
 user = User(
     role_id=role.id,
     nom="Test",

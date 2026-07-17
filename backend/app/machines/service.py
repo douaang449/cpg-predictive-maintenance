@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.auth.models import User
 from app.machines.models import Machine, StatutOperationnel
-from app.machines.schemas import MachineCreate, MachinesUpdate
+from app.machines.schemas import MachineCreate, MachineUpdate
 
 def get_machine(db:Session, machine_id:int) -> Optional[Machine]:
     return(
@@ -48,7 +48,7 @@ def create_machine(db: Session, data: MachineCreate) ->Machine:
     db.refresh(machine)
     return machine 
 
-def update_machine(db: Session, machine: Machine, data: MachinesUpdate) -> Machine :
+def update_machine(db: Session, machine: Machine, data: MachineUpdate) -> Machine :
     for field, value in data.model_dump(exclude_unset=True).items():
         setattr(machine, field, value)
     db.commit()

@@ -4,14 +4,14 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.auth.dependencies import get_current_user
 from app.auth.models import User
-from app.predictions.schemas import SensoreReadingInput, PredictionOutput
+from app.predictions.schemas import SensorReadingInput, PredictionOutput
 from app.predictions.service import process_new_reading
 
 router= APIRouter(prefix="/predictions", tags=["Prédictions"])
 
 @router.post("", response_model=PredictionOutput)
 def create_prediction(
-    reading: SensoreReadingInput,
+    reading: SensorReadingInput,
     db: Session = Depends(get_db),
     current_user : User = Depends(get_current_user),
 ):

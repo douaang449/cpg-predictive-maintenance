@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-class SensoreReadingInput(BaseModel):
+class SensorReadingInput(BaseModel):
     machine_id: int
     ambient_temp_k: float = Field(...,description="Température ambiante en Kelvin" )
     motor_temp_k: float = Field(..., description="Température du moteur/process en Kelvin")

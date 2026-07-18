@@ -7,8 +7,8 @@ from app.alerts.models import Alert, NiveauAlerte, StatutAlert
 from app.alerts.schemas import AlertThresholdCreate, AlertThresholdUpdate
 from app.alerts.threshold_models import AlertThreshold, Parametre, ScopeType
 from app.machines.models import Machine
-
-
+from app.predictions.schemas import SensorReadingInput
+from app.alerts.threshold_service import resolve_threshold, determine_level
 
 def create_threshold(db: Session, data: AlertThresholdCreate) -> AlertThreshold:
     seuil = AlertThreshold(**data.model_dump())
@@ -72,59 +72,77 @@ def _niveau_pour_valeur(valeur: float, seuil: AlertThreshold) -> Optional[Niveau
         return NiveauAlerte.maintenance
     if valeur >= seuil.seuil_surveillance:
         return NiveauAlerte.surveillance
-    return None  # normal -> pas d'alerte créée
+    return None  
 
 
 
 
-def evaluer_et_creer_alerte(
+def evaluate_and_create_alert(
     db: Session,
-    *,
     machine: Machine,
-    parametre: Parametre,
-    valeur: float,
-    prediction_id: Optional[int] = None,
-) -> Optional[Alert]:
-    """
-    À appeler depuis le service de prédiction de Personne A après chaque
-    nouvelle mesure/prédiction :
+    reading: SensorReadingInput,
+    probabilite: float,
+    prediction_id: int,
+) -> Alert | None:
+    checks = [
+        (Parametre.probabilite_panne, probabilite),
+        (Parametre.temperature, reading.motor_temp_k),
+        (Parametre.vitesse, reading.shaft_rpm),
+        (Parametre.couple, reading.load_torque_nm),
+    ]
 
-        alerte = evaluer_et_creer_alerte(
-            db, machine=machine,
-            parametre=Parametre.probabilite_panne,
-            valeur=probabilite_predite,
-            prediction_id=prediction.id,
-        )
+    worst_level = "normal"
+    worst_param = None
+    worst_value = None
+    worst_threshold = None
 
-    Retourne l'Alert créée, ou None (aucun seuil dépassé / aucun seuil configuré).
-    """
-    seuil = _resoudre_seuil(db, machine, parametre)
-    if seuil is None:
+    
+    for parametre, value in checks:
+        thresholds = resolve_threshold(db, machine, parametre)
+        level = determine_level(value, thresholds)
+        
+      
+        
+        if LEVEL_ORDER[level] > LEVEL_ORDER[worst_level]:
+            worst_level = level
+            worst_param = parametre
+            worst_value = value
+            worst_threshold = thresholds[level] if level != "normal" else None
+          
+   
+
+    if worst_level == "normal":
         return None
 
-    niveau = _niveau_pour_valeur(valeur, seuil)
-    if niveau is None:
-        return None
-
-    seuil_depasse = {
-        NiveauAlerte.surveillance: seuil.seuil_surveillance,
-        NiveauAlerte.maintenance: seuil.seuil_maintenance,
-        NiveauAlerte.critique: seuil.seuil_critique,
-    }[niveau]
-
-    alerte = Alert(
-        machine_id=machine.id,
-        prediction_id=prediction_id,
-        parametre_declencheur=parametre.value,
-        valeur_mesuree=valeur,
-        seuil_depasse=seuil_depasse,
-        niveau=niveau,
-        statut=StatutAlert.ouverte,
+    existing = (
+        db.query(Alert)
+        .filter(Alert.machine_id == machine.id, Alert.statut == StatutAlert.ouverte)
+        .first()
     )
-    db.add(alerte)
+    if existing:
+        existing.valeur_mesuree = worst_value
+        existing.niveau = LEVEL_MAP[worst_level]
+        existing.parametre_declencheur = worst_param.value
+        existing.seuil_depasse = worst_threshold
+        existing.prediction_id = prediction_id if worst_param == Parametre.probabilite_panne else None
+        db.commit()
+        db.refresh(existing)
+        return existing
+
+    alert = Alert(
+        machine_id=machine.id,
+        prediction_id=prediction_id if worst_param == Parametre.probabilite_panne else None,
+        parametre_declencheur=worst_param.value,
+        valeur_mesuree=worst_value,
+        seuil_depasse=worst_threshold,
+        niveau=LEVEL_MAP[worst_level],
+        statut=StatutAlert.ouverte,
+        date_creation=datetime.now(timezone.utc),
+    )
+    db.add(alert)
     db.commit()
-    db.refresh(alerte)
-    return alerte
+    db.refresh(alert)
+    return alert
 
 
 
@@ -162,3 +180,63 @@ def fermer_alerte(db: Session, alerte: Alert) -> Alert:
     db.commit()
     db.refresh(alerte)
     return alerte
+
+LEVEL_ORDER = {"normal": 0 , "surveillance": 1 , "maintenance": 2 , "critique": 3}
+LEVEL_MAP = {
+    "surveillance": NiveauAlerte.surveillance,
+    "maintenance": NiveauAlerte.maintenance,
+    "critique": NiveauAlerte.critique,
+}
+
+def evaluate_and_create_alert(
+        db: Session,
+        machine: Machine,
+        reading: SensorReadingInput,
+        probabilite: float,
+        prediction_id: int,
+
+) -> Alert | None :
+    checks = [(Parametre.probabilite_panne, probabilite),
+              (Parametre.temperature, reading.motor_temp_k),
+              (Parametre.vitesse, reading.shaft_rpm),
+              (Parametre.couple, reading.load_torque_nm)]
+    worst_level = "normal"
+    worst_param = None
+    worst_value = None
+    worst_threshold = None
+
+    for parametre, value in checks:
+        thresholds = resolve_threshold(db, machine,parametre)
+        level = determine_level(value, thresholds)
+       
+        if LEVEL_ORDER[level] > LEVEL_ORDER[worst_level]:
+            worst_level = level
+            worst_param = parametre
+            worst_value =value
+            worst_threshold =thresholds[level]
+           
+    if worst_level == "normal":
+        return None
+
+    existing = (db.query(Alert).filter(Alert.machine_id == machine.id, Alert.statut == StatutAlert.ouverte).first()) 
+    if existing:
+            existing.valeur_mesuree = worst_value
+            existing.niveau = LEVEL_MAP[worst_level]
+            existing.parametre_declencheur = worst_param.value
+            existing.seuil_depasse = worst_threshold
+            db.commit()
+            db.refresh(existing)
+            return existing
+
+    alert =Alert(machine_id=machine.id,
+                     prediction_id=prediction_id if worst_param == Parametre.probabilite_panne else None,
+                     parametre_declencheur= worst_param.value,
+                     valeur_mesuree=worst_value,
+                     seuil_depasse=worst_threshold,
+                     niveau=LEVEL_MAP[worst_level],
+                     statut=StatutAlert.ouverte,
+                     date_creation=datetime.now(timezone.utc),)  
+    db.add(alert)
+    db.commit()
+    db.refresh(alert)
+    return alert 

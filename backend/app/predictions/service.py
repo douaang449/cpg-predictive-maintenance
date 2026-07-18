@@ -2,9 +2,12 @@ import os
 import joblib
 from datetime import datetime, timezone
 from sqlalchemy.orm import Session
+import pandas as pd
 
-from app.predictions.schemas import SensoreReadingInput
+from app.predictions.schemas import SensorReadingInput
 from app.machines.sensor_models import SensorReading, Prediction
+from app.alerts.service import evaluate_and_create_alert
+from app.machines.models import Machine
 
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "..","..","ml","data","baseline_rf.joblib")
@@ -20,13 +23,13 @@ def get_model():
         _model = joblib.load(MODEL_PATH)
     return _model
 
-def predict_failure_probabilty(reading: SensoreReadingInput) -> float:
+def predict_failure_probabilty(reading: SensorReadingInput) -> float:
     model = get_model()
-    features = [[getattr(reading, f) for f in FEATURES_ORDER]]
+    features = pd.DataFrame([[getattr(reading, f) for f in FEATURES_ORDER]], columns=FEATURES_ORDER)
     proba = model.predict_proba(features)[0][1]
     return float (proba)
 
-def process_new_reading(db: Session, reading: SensoreReadingInput) -> Prediction:
+def process_new_reading(db: Session, reading: SensorReadingInput) -> Prediction:
     now = datetime.now(timezone.utc)
 
     sensor_reading = SensorReading(
@@ -54,6 +57,8 @@ def process_new_reading(db: Session, reading: SensoreReadingInput) -> Prediction
     db.add(prediction)
     db.commit()
     db.refresh(prediction)
+    machine =db.query(Machine).filter(Machine.id == reading.machine_id).first()
+    evaluate_and_create_alert(db, machine,reading,probabilite, prediction.id)
 
     return prediction
 

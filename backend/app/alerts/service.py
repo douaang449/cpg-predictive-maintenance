@@ -41,7 +41,7 @@ def update_threshold(db: Session, seuil: AlertThreshold, data: AlertThresholdUpd
 
 
 def _resoudre_seuil(db: Session, machine: Machine, parametre: Parametre) -> Optional[AlertThreshold]:
-    """Le seuil spécifique à la machine prime sur le seuil par défaut du type d'équipement."""
+
     seuil_machine = (
         db.query(AlertThreshold)
         .filter(
